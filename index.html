@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Lì Xì May Mắn 2026</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background-color: #b71c1c; color: #fff; text-align: center; padding: 50px 20px; }
+        .container { background: #fff; color: #333; max-width: 400px; margin: auto; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        h1 { color: #d32f2f; }
+        input { width: 80%; padding: 12px; margin-bottom: 20px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; text-align: center; }
+        button { background: #ffca28; color: #b71c1c; border: none; padding: 15px 30px; font-size: 18px; font-weight: bold; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+        button:hover { background: #ffb300; transform: scale(1.05); }
+        button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        #result { margin-top: 20px; font-size: 20px; font-weight: bold; color: #d32f2f; min-height: 60px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🧧 Lì Xì 2026 🧧</h1>
+        <p>Nhập tên của bạn để bốc thăm!</p>
+        
+        <input type="text" id="userName" placeholder="Nhập tên của bạn...">
+        <button id="btnClaim" onclick="claimLixi()">MỞ BAO LÌ XÌ</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // --- CẤU HÌNH JSONBIN GIỐNG HỆT TRANG ADMIN ---
+        const BIN_ID = '69940250d0ea881f40c07156'; 
+        const API_KEY = '$2a$10$FhL22C5.IIplXc870tFGN.6aE8f4WAWwz2umEMJWyvVec094oU266';
+        // ----------------------------------------
+
+        const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Master-Key': API_KEY
+        };
+
+        async function claimLixi() {
+            const name = document.getElementById('userName').value.trim();
+            const resultDiv = document.getElementById('result');
+            const btn = document.getElementById('btnClaim');
+
+            if (!name) { alert("Bạn phải nhập tên trước nhé!"); return; }
+
+            btn.disabled = true;
+            resultDiv.innerHTML = "Đang kết nối đến bao lì xì...";
+
+            try {
+                // 1. Tải dữ liệu mới nhất từ Cloud
+                const response = await fetch(API_URL, { headers: headers });
+                const json = await response.json();
+                let data = json.record;
+
+                if (!data.pool) {
+                    resultDiv.innerHTML = "Admin chưa tạo Round mới!"; 
+                    btn.disabled = false; return;
+                }
+
+                // 2. Kiểm tra xem đã nhận chưa
+                const alreadyClaimed = data.results.find(r => r.name.toLowerCase() === name.toLowerCase());
+                if (alreadyClaimed) {
+                    resultDiv.innerHTML = `Bạn <b>${name}</b> đã mở bao rồi!<br>Phần thưởng của bạn: ${alreadyClaimed.amount.toLocaleString()}đ`;
+                    btn.disabled = false; return;
+                }
+
+                // 3. Kiểm tra xem còn bao không
+                if (data.pool.length === 0) {
+                    resultDiv.innerHTML = "Rất tiếc! Đã hết bao lì xì. 🥲";
+                    btn.disabled = false; return;
+                }
+
+                // 4. Lấy 1 bao (phần tử cuối cùng) và xóa nó khỏi mảng pool
+                const amount = data.pool.pop();
+                
+                // 5. Ghi tên người dùng vào mảng results
+                const timeStr = new Date().toLocaleTimeString();
+                data.results.push({ name: name, amount: amount, time: timeStr });
+
+                resultDiv.innerHTML = "Đang mở bao...";
+
+                // 6. Cập nhật dữ liệu mới lên Cloud
+                await fetch(API_URL, { 
+                    method: 'PUT', 
+                    headers: headers, 
+                    body: JSON.stringify(data) 
+                });
+
+                // 7. Hiện kết quả cho người dùng
+                setTimeout(() => {
+                    resultDiv.innerHTML = `Chúc mừng <b>${name}</b>!<br>Bạn đã trúng <span style="font-size: 28px;">${amount.toLocaleString()} VNĐ</span>`;
+                    btn.disabled = false;
+                }, 800);
+
+            } catch (error) {
+                console.error(error);
+                resultDiv.innerHTML = "Lỗi kết nối mạng, vui lòng thử lại!";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Quản Lý Lì Xì (JSONBin)</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f9; padding: 20px; color: #333; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #d32f2f; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #d32f2f; color: white; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; border-radius: 4px; }
+        button:hover { background: #b71c1c; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .stats { display: flex; justify-content: space-between; background: #ffebee; padding: 15px; border-radius: 5px; margin-top: 20px; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background: #f8f8f8; }
+        .btn-refresh { background: #4CAF50; margin-bottom: 10px; }
+        #status { color: green; font-weight: bold; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>⚙️ Admin Dashboard - Lì Xì (Cloud)</h1>
+    
+    <div style="border: 1px solid #ddd; padding: 15px; border-radius: 5px;">
+        <h2>1. Cài Đặt Round Mới</h2>
+        <div class="form-group">
+            <label>Tổng ngân sách (VNĐ):</label>
+            <input type="number" id="budget" value="2000000">
+        </div>
+        <div class="form-group">
+            <label>Số người nhận:</label>
+            <input type="number" id="people" value="15">
+        </div>
+        <div class="form-group">
+            <label>Các mệnh giá (Cách nhau bằng dấu phẩy):</label>
+            <input type="text" id="denominations" value="50000, 100000, 200000">
+        </div>
+        <button id="btnStart" onclick="startNewRound()">BẮT ĐẦU ROUND MỚI</button>
+        <div id="status"></div>
+    </div>
+
+    <div class="stats" id="statsBoard">
+        Đang tải dữ liệu...
+    </div>
+
+    <h2>2. Kết Quả Random</h2>
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData()">Làm mới dữ liệu 🔄</button>
+    <table>
+        <thead>
+            <tr>
+                <th>STT</th>
+                <th>Tên người nhận</th>
+                <th>Số tiền nhận (VNĐ)</th>
+                <th>Thời gian</th>
+            </tr>
+        </thead>
+        <tbody id="resultTable">
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // --- CẤU HÌNH JSONBIN CỦA BẠN TẠI ĐÂY ---
+    const BIN_ID = '69940250d0ea881f40c07156'; 
+    const API_KEY = '$2a$10$FhL22C5.IIplXc870tFGN.6aE8f4WAWwz2umEMJWyvVec094oU266';
+    // ----------------------------------------
+
+    const API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+    const headers = {
+        'Content-Type': 'application/json',
+        'X-Master-Key': API_KEY
+    };
+
+    async function startNewRound() {
+        const btn = document.getElementById('btnStart');
+        const status = document.getElementById('status');
+        btn.disabled = true;
+        status.innerText = "Đang tạo dữ liệu và đẩy lên Cloud...";
+
+        const budget = parseInt(document.getElementById('budget').value);
+        const people = parseInt(document.getElementById('people').value);
+        const denomsStr = document.getElementById('denominations').value;
+        const denoms = denomsStr.split(',').map(n => parseInt(n.trim())).sort((a,b) => a - b);
+
+        if (budget < people * denoms[0]) {
+            alert(`Ngân sách không đủ! Ít nhất cần ${people * denoms[0]}đ.`);
+            btn.disabled = false; return;
+        }
+
+        // Tạo Pool ngẫu nhiên
+        let pool = new Array(people).fill(denoms[0]);
+        let currentTotal = pool.reduce((a,b) => a+b, 0);
+
+        let safetyCounter = 10000;
+        while(safetyCounter-- > 0) {
+            let randIndex = Math.floor(Math.random() * people);
+            let currentVal = pool[randIndex];
+            let currentDenomIndex = denoms.indexOf(currentVal);
+            
+            if (currentDenomIndex < denoms.length - 1) {
+                let nextVal = denoms[currentDenomIndex + 1];
+                let diff = nextVal - currentVal;
+                
+                if (currentTotal + diff <= budget) {
+                    pool[randIndex] = nextVal;
+                    currentTotal += diff;
+                }
+            }
+            if (pool.every(val => val === denoms[denoms.length - 1])) break;
+        }
+        pool.sort(() => Math.random() - 0.5);
+
+        const newData = {
+            config: { budget, people, actualTotal: currentTotal },
+            pool: pool,
+            results: []
+        };
+
+        try {
+            await fetch(API_URL, { method: 'PUT', headers: headers, body: JSON.stringify(newData) });
+            status.innerText = "Tạo Round mới thành công!";
+            loadData();
+        } catch (error) {
+            status.innerText = "Lỗi khi lưu dữ liệu!";
+            console.error(error);
+        }
+        btn.disabled = false;
+    }
+
+    async function loadData() {
+        const btn = document.getElementById('btnRefresh');
+        btn.disabled = true;
+        btn.innerText = "Đang tải...";
+
+        try {
+            const response = await fetch(API_URL, { headers: headers });
+            const json = await response.json();
+            const data = json.record;
+
+            if (!data.config) throw new Error("Database trống");
+
+            let totalClaimed = data.results.reduce((sum, item) => sum + item.amount, 0);
+            
+            document.getElementById('statsBoard').innerHTML = `
+                <div>💰 Tổng ngân sách: ${data.config.budget.toLocaleString()}đ</div>
+                <div>✅ Đã phát: <span style="color: green">${totalClaimed.toLocaleString()}đ</span></div>
+                <div>🧧 Số bao chưa mở: <span style="color: red">${data.pool.length}</span></div>
+            `;
+
+            const tbody = document.getElementById('resultTable');
+            tbody.innerHTML = '';
+            data.results.forEach((item, index) => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td><b>${item.name}</b></td>
+                        <td style="color: #d32f2f; font-weight: bold;">${item.amount.toLocaleString()}</td>
+                        <td>${item.time}</td>
+                    </tr>
+                `;
+            });
+        } catch (error) {
+            console.error("Lỗi:", error);
+            document.getElementById('statsBoard').innerHTML = "Chưa có dữ liệu, hãy Bắt đầu Round mới!";
+        }
+        
+        btn.disabled = false;
+        btn.innerText = "Làm mới dữ liệu 🔄";
+    }
+
+    window.onload = loadData;
+</script>
+
+</body>
+</html>
