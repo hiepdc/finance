@@ -315,7 +315,7 @@ function buildCFChart(months,tDN,tHX){
     ]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{label:ctx=>ctx.dataset.type==='line'?ctx.dataset.label+': '+fm(ctx.raw,2)+' tỷ':ctx.dataset.label+': '+fm(ctx.raw,3)+' tỷ'}}},
-      scales:{x:{stacked:true,ticks:{autoSkip:true,maxTicksLimit:Math.min(18,months.length),font:{size:9}}},y:{stacked:false,ticks:{callback:v=>fm(v,2)+' tỷ'}}}}
+      scales:{x:{stacked:true,ticks:{autoSkip:true,maxTicksLimit:Math.min(18,months.length),font:{size:9}}},y:{stacked:true,ticks:{callback:v=>fm(v,2)+' tỷ'}}}}
   });
 }
 
