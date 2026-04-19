@@ -310,8 +310,8 @@ function buildCFChart(months,tDN,tHX){
     data:{labels,datasets:[
       {label:'JPY→VND (tỷ)',data:months.map(r=>r.jpyTy),backgroundColor:months.map(r=>r.isBonus?'#1D9E75':'#378ADD'),borderWidth:0,stack:'s'},
       {label:'Nguồn khác (tỷ)',data:months.map(r=>r.vndTy),backgroundColor:'#EF9F27AA',borderWidth:0,stack:'s'},
-      {label:'Mục tiêu PA A',data:Array(labels.length).fill(tDN),type:'line',borderColor:'#E24B4A',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false,tension:0,stack:undefined},
-      {label:'Mục tiêu PA B',data:Array(labels.length).fill(tHX),type:'line',borderColor:'#BA7517',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false,tension:0,stack:undefined},
+      {label:'Mục tiêu PA A',data:Array(labels.length).fill(tDN),type:'line',borderColor:'#E24B4A',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false,tension:0,stack:'tA'},
+      {label:'Mục tiêu PA B',data:Array(labels.length).fill(tHX),type:'line',borderColor:'#BA7517',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false,tension:0,stack:'tB'},
     ]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{label:ctx=>ctx.dataset.type==='line'?ctx.dataset.label+': '+fm(ctx.raw,2)+' tỷ':ctx.dataset.label+': '+fm(ctx.raw,3)+' tỷ'}}},
