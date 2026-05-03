@@ -96,19 +96,20 @@ hr{border:none;border-top:1px solid #eee;margin:10px 0}
     <hr>
     <div class="g3">
       <div class="field"><label>Tỉ lệ thưởng mỗi lần / 1 tháng lương</label><input type="number" id="bonusR" value="1.5" step="0.1" oninput="calc()"><span class="hint">1.5 = mỗi lần thưởng = 1.5 tháng lương, thưởng T7 và T12</span></div>
-      <div class="field"><label>Tăng lương hàng năm (%)</label><input type="number" id="raise" value="10" step="1" oninput="calc()"><span class="hint">Từ năm thứ 2 trở đi</span></div>
+      <div class="field"><label>Tăng lương hàng năm (%)</label><input type="number" id="raise" value="5" step="1" oninput="calc()"><span class="hint">Từ năm thứ 2 trở đi</span></div>
       <div class="field"><label>Chi phí sinh hoạt / tháng (man JPY)</label><input type="number" id="exp" value="30" step="1" oninput="calc()"></div>
     </div>
   </div>
 
   <div class="card">
     <div class="ct">Vốn hiện có & Thời gian</div>
-    <div class="g5">
+    <div class="g3">
       <div class="field"><label>JPY hiện có (man)</label><input type="number" id="jpyNow" value="600" step="10" oninput="calc()"></div>
       <div class="field"><label>VND hiện có (triệu)</label><input type="number" id="vndNow" value="200" step="10" oninput="calc()"></div>
+      <div class="field"><label>Tháng bắt đầu</label><input type="month" id="startDate" value="2026-04" oninput="calc()"><span class="hint">Mặc định T4/2026</span></div>
       <div class="field"><label>Tỉ giá hiện tại (VND / 1 JPY)</label><input type="number" id="rNow" value="165" step="1" oninput="calc()"><span class="hint">1 man = rNow × 10,000 VND</span></div>
       <div class="field"><label>Tỉ giá kỳ vọng cuối kỳ</label><input type="number" id="r2028" value="185" step="1" oninput="calc()"><span class="hint">Dùng để quy đổi cuối kỳ</span></div>
-      <div class="field"><label>Số năm dự kiến (1-10 năm)</label><input type="number" id="years" value="2" min="1" max="10" step="1" oninput="calc()"><span class="hint">Kể từ T4/2026</span></div>
+      <div class="field"><label>Số tháng dự kiến</label><input type="number" id="years" value="24" min="1" max="120" step="1" oninput="calc()"><span class="hint">1–120 tháng</span></div>
     </div>
   </div>
 
@@ -130,6 +131,7 @@ hr{border:none;border-top:1px solid #eee;margin:10px 0}
   <div class="card">
     <div class="ct">Kết quả tổng hợp</div>
     <div id="sumMetrics" class="g4"></div>
+    <div id="yearlyIncome"></div>
   </div>
 </div>
 
@@ -244,9 +246,11 @@ function buildMonths(){
   const incH=N('incH'),incW=N('incW'),taxH=N('taxH')/100,taxW=N('taxW')/100;
   const bonusR=N('bonusR'),raise=N('raise')/100,exp=N('exp');
   const jpyNow=N('jpyNow'),vndNow=N('vndNow'),rNow=N('rNow'),r2028=N('r2028');
-  const yrs=Math.max(1,Math.min(10,Math.round(N('years'))));
-  const totalMonths=yrs*12;
+  const totalMonths=Math.max(1,Math.min(120,Math.round(N('years'))));
+  const yrs=Math.ceil(totalMonths/12);
   const totalExtraTr=extraSources.reduce((s,e)=>s+e.value,0);
+  const startVal=(document.getElementById('startDate').value||'2026-04').split('-').map(Number);
+  const startYr=startVal[0],startMo=startVal[1]||4;
 
   const m15=15;
   const lH=incH/m15,lW=incW/m15;
@@ -258,7 +262,7 @@ function buildMonths(){
   let jpy=jpyNow,vndAcc=vndNow;
 
   for(let i=0;i<=totalMonths;i++){
-    const d=new Date(2026,3+i);
+    const d=new Date(startYr,startMo-1+i);
     const mo=d.getMonth()+1,yr=d.getFullYear();
     const yearIdx=Math.floor(i/12);
     const mult=yearIdx===0?1:Math.pow(1+raise,yearIdx);
@@ -274,11 +278,12 @@ function buildMonths(){
     const totalTy=Math.round((jpyTy+vndTy)*1000)/1000;
     months.push({mo,yr,luong,thuong,chi,duJpy,jpy:jpyR,jpyTy,vndAcc:Math.round(vndAcc),vndTy,totalTy,isBonus,isYearEnd:mo===12&&i>0,yearIdx});
   }
-  return{months,duMo,bnH,bnW,lnH,lnW,totalExtraTr,yrs,rNow,r2028,jpyNow,vndNow};
+  return{months,duMo,bnH,bnW,lnH,lnW,totalExtraTr,yrs,rNow,r2028,jpyNow,vndNow,startMo,startYr};
 }
 
 function calc(){
-  const{months,duMo,rNow,r2028,jpyNow,vndNow}=buildMonths();
+  const{months,duMo,rNow,r2028,jpyNow,vndNow,lnH,lnW,bnH,bnW,yrs,startMo,startYr}=buildMonths();
+  const startLabel=`T${startMo}/${startYr}`;
   const last=months[months.length-1];
   lastTotalTy=last.totalTy;
   const nowTy=m2ty(jpyNow,rNow)+vndNow/1000;
@@ -286,15 +291,25 @@ function calc(){
 
   document.getElementById('sumMetrics').innerHTML=`
     <div class="m"><div class="ml">Dư hàng tháng (năm 1)</div><div class="mv">${fm(duMo,1)}万</div><div class="ms">≈ ${fm(m2tr(duMo,rNow),0)} triệu VND</div></div>
-    <div class="m g"><div class="ml">Vốn hiện có (T4/2026)</div><div class="mv">${fm(nowTy,2)} tỷ</div><div class="ms">${fm(jpyNow,0)}万 × ${rNow} + ${fm(vndNow,0)}tr</div></div>
-    <div class="m g"><div class="ml">JPY cuối kỳ (${N('years')} năm)</div><div class="mv">${fm(last.jpy,1)}万</div><div class="ms">= ${fm(last.jpyTy,2)} tỷ VND (tỉ giá ${r2028})</div></div>
+    <div class="m g"><div class="ml">Vốn hiện có (${startLabel})</div><div class="mv">${fm(nowTy,2)} tỷ</div><div class="ms">${fm(jpyNow,0)}万 × ${rNow} + ${fm(vndNow,0)}tr</div></div>
+    <div class="m g"><div class="ml">JPY cuối kỳ (${N('years')} tháng)</div><div class="mv">${fm(last.jpy,1)}万</div><div class="ms">= ${fm(last.jpyTy,2)} tỷ VND (tỉ giá ${r2028})</div></div>
     <div class="m g"><div class="ml">Tổng tài sản cuối kỳ</div><div class="mv">${fm(last.totalTy,2)} tỷ</div><div class="ms">JPY + nguồn khác tích luỹ</div></div>`;
+
+  const raise=N('raise')/100;
+  const baseYearly=12*(lnH+lnW)+2*(bnH+bnW);
+  const yearlyRows=Array.from({length:yrs},(_,y)=>{
+    const mult=y===0?1:Math.pow(1+raise,y);
+    const income=baseYearly*mult;
+    const incTr=m2tr(income,rNow);
+    return `<tr><td>Năm ${y+1}</td><td><b>${fm(income,1)}</b> 万JPY</td><td class="ok"><b>${fm(incTr/1000,2)}</b> tỷ VND</td><td style="color:#888">${fm(incTr,0)} triệu${y>0?' (+'+N('raise')+'%/năm)':''}</td></tr>`;
+  }).join('');
+  document.getElementById('yearlyIncome').innerHTML=`<div style="margin-top:12px"><div class="sh">Thu nhập mỗi năm (sau thuế, tỷ giá ${rNow})</div><table><thead><tr><th>Năm</th><th>Tổng lương+thưởng (万JPY)</th><th>Quy VND (tỷ)</th><th>Quy VND (triệu)</th></tr></thead><tbody>${yearlyRows}</tbody></table></div>`;
 
   buildCFChart(months,tDN,tHX);
   buildCFTable(months);
 
   document.getElementById('endMetrics').innerHTML=`
-    <div class="m g"><div class="ml">Tổng tài sản cuối kỳ</div><div class="mv">${fm(last.totalTy,2)} tỷ</div><div class="ms">${N('years')} năm từ T4/2026</div></div>
+    <div class="m g"><div class="ml">Tổng tài sản cuối kỳ</div><div class="mv">${fm(last.totalTy,2)} tỷ</div><div class="ms">${N('years')} tháng từ ${startLabel}</div></div>
     <div class="m ${last.totalTy>=tDN?'g':'a'}"><div class="ml">PA A Điện Ngọc (${fm(tDN,1)} tỷ)</div><div class="mv">${last.totalTy>=tDN?'Đủ rồi':'Thiếu '+fm(tDN-last.totalTy,2)+' tỷ'}</div><div class="ms">${last.totalTy>=tDN?'Vượt '+fm(last.totalTy-tDN,2)+' tỷ':'Cần vay thêm'}</div></div>
     <div class="m ${last.totalTy>=tHX?'g':'r'}"><div class="ml">PA B Hòa Xuân (${fm(tHX,1)} tỷ)</div><div class="mv">${last.totalTy>=tHX?'Đủ rồi':'Thiếu '+fm(tHX-last.totalTy,2)+' tỷ'}</div><div class="ms">${last.totalTy>=tHX?'Vượt '+fm(last.totalTy-tHX,2)+' tỷ':'Cần vay thêm'}</div></div>
     <div class="m"><div class="ml">VND từ nguồn khác</div><div class="mv">${fm(last.vndTy,3)} tỷ</div><div class="ms">${fm(buildMonths().totalExtraTr,1)} tr/tháng</div></div>`;
@@ -314,7 +329,10 @@ function buildCFChart(months,tDN,tHX){
       {label:'Mục tiêu PA B',data:Array(labels.length).fill(tHX),type:'line',borderColor:'#BA7517',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:false,tension:0,stack:'tB'},
     ]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:ctx=>ctx.dataset.type==='line'?ctx.dataset.label+': '+fm(ctx.raw,2)+' tỷ':ctx.dataset.label+': '+fm(ctx.raw,3)+' tỷ'}}},
+      tooltip:{callbacks:{
+        label:ctx=>ctx.dataset.type==='line'?ctx.dataset.label+': '+fm(ctx.raw,2)+' tỷ':ctx.dataset.label+': '+fm(ctx.raw,3)+' tỷ',
+        footer:items=>{const t=items.reduce((s,x)=>x.dataset.type!=='line'?s+(x.raw||0):s,0);return t>0?'Tổng tích luỹ: '+fm(t,3)+' tỷ':'';}
+      }}},
       scales:{x:{stacked:true,ticks:{autoSkip:true,maxTicksLimit:Math.min(18,months.length),font:{size:9}}},y:{stacked:true,ticks:{callback:v=>fm(v,2)+' tỷ'}}}}
   });
 }
