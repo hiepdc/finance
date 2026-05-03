@@ -297,13 +297,15 @@ function calc(){
 
   const raise=N('raise')/100;
   const baseYearly=12*(lnH+lnW)+2*(bnH+bnW);
+  const annualExp=N('exp')*12;
   const yearlyRows=Array.from({length:yrs},(_,y)=>{
     const mult=y===0?1:Math.pow(1+raise,y);
     const income=baseYearly*mult;
-    const incTr=m2tr(income,rNow);
-    return `<tr><td>Năm ${y+1}</td><td><b>${fm(income,1)}</b> 万JPY</td><td class="ok"><b>${fm(incTr/1000,2)}</b> tỷ VND</td><td style="color:#888">${fm(incTr,0)} triệu${y>0?' (+'+N('raise')+'%/năm)':''}</td></tr>`;
+    const net=income-annualExp;
+    const netTr=m2tr(net,rNow);
+    return `<tr><td>Năm ${y+1}${y>0?' <span style="color:#888;font-size:10px">(+'+N('raise')+'%)</span>':''}</td><td>${fm(income,1)} - ${fm(annualExp,1)} = <b>${fm(net,1)}</b> 万JPY</td><td class="ok"><b>${fm(netTr/1000,2)}</b> tỷ VND</td><td style="color:#888">${fm(netTr,0)} triệu</td></tr>`;
   }).join('');
-  document.getElementById('yearlyIncome').innerHTML=`<div style="margin-top:12px"><div class="sh">Thu nhập mỗi năm (sau thuế, tỷ giá ${rNow})</div><table><thead><tr><th>Năm</th><th>Tổng lương+thưởng (万JPY)</th><th>Quy VND (tỷ)</th><th>Quy VND (triệu)</th></tr></thead><tbody>${yearlyRows}</tbody></table></div>`;
+  document.getElementById('yearlyIncome').innerHTML=`<div style="margin-top:12px"><div class="sh">Dư tích luỹ mỗi năm (lương về tay − chi tiêu, tỷ giá ${rNow})</div><table><thead><tr><th>Năm</th><th>Thu nhập − Chi tiêu (万JPY)</th><th>Dư (tỷ VND)</th><th>Dư (triệu VND)</th></tr></thead><tbody>${yearlyRows}</tbody></table></div>`;
 
   buildCFChart(months,tDN,tHX);
   buildCFTable(months);
